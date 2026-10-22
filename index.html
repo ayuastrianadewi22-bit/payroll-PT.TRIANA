@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Absensi & Payroll Garmen PT. TRIANA</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    /* Aturan Cetak (Print Styles) */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printableSlip, #printableSlip * {
+        visibility: visible;
+      }
+      #printableSlip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+        box-shadow: none !important;
+        border: 1px solid #111827 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Header Aplikasi -->
+  <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-40 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-400 text-indigo-950 p-2.5 rounded-xl font-black text-xl tracking-wider shadow">
+          <i class="fa-solid fa-shirt"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight">PT. TRIANA GARMEN INDONESIA</h1>
+          <p class="text-xs text-indigo-200">Sistem Presensi Pabrik, Jam Kerja, Lembur & Penggajian</p>
+        </div>
+      </div>
+      
+      <!-- Navigasi Tab -->
+      <nav class="flex items-center space-x-1 sm:space-x-2 bg-indigo-950/60 p-1 rounded-xl">
+        <button onclick="switchTab('presensi')" id="tabBtn-presensi" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition bg-indigo-600 text-white shadow">
+          <i class="fa-solid fa-clipboard-user mr-1.5"></i>Presensi
+        </button>
+        <button onclick="switchTab('rekap')" id="tabBtn-rekap" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition text-indigo-200 hover:text-white">
+          <i class="fa-solid fa-table-list mr-1.5"></i>Rekap Data
+        </button>
+        <button onclick="switchTab('payroll')" id="tabBtn-payroll" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition text-indigo-200 hover:text-white">
+          <i class="fa-solid fa-money-bill-wave mr-1.5"></i>Slip Gaji
+        </button>
+        <button onclick="switchTab('karyawan')" id="tabBtn-karyawan" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition text-indigo-200 hover:text-white">
+          <i class="fa-solid fa-users-gear mr-1.5"></i>Karyawan
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Container Konten -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+    <!-- Feedback Box / Alert Notification -->
+    <div id="toastMessage" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transition-opacity">
+      <span id="toastIcon" class="text-emerald-400 text-lg"><i class="fa-solid fa-circle-check"></i></span>
+      <span id="toastText" class="text-sm font-medium">Data berhasil disimpan!</span>
+    </div>
+
+    <!-- SECTION 1: FORM INPUT PRESENSI & LEMBUR -->
+    <section id="section-presensi" class="block">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Kolom Form Input -->
+        <div class="lg:col-span-1 bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+            <h2 class="font-bold text-slate-800 text-base sm:text-lg flex items-center">
+              <i class="fa-solid fa-clock-rotate-left mr-2 text-indigo-600"></i>Catat Presensi Harian
+            </h2>
+            <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md font-semibold">Garmen Shift</span>
+          </div>
+
+          <form id="attendanceForm" onsubmit="handleAttendanceSubmit(event)" class="space-y-4">
+            <!-- Pilihan Tanggal -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Kerja</label>
+              <input type="date" id="attDate" required class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+
+            <!-- Pilih Karyawan -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Karyawan (Bagian / Divisi)</label>
+              <select id="attEmployee" required onchange="updateEmployeeBadge(this.value)" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                <!-- Diisi secara dinamis via JS -->
+              </select>
+              <div id="empBadge" class="mt-1.5 text-xs text-slate-500 italic"></div>
+            </div>
+
+            <!-- Status Kehadiran -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Status Kehadiran</label>
+              <select id="attStatus" onchange="toggleTimeInputs(this.value)" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium">
+                <option value="Hadir">Hadir Bekerja</option>
+                <option value="Sakit">Sakit (SKD)</option>
+                <option value="Izin">Izin Resmi</option>
+                <option value="Alpa">Alpa / Tanpa Keterangan</option>
+              </select>
+            </div>
+
+            <!-- Jam Masuk & Jam Keluar -->
+            <div id="workingTimeContainer" class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Masuk</label>
+                <input type="time" id="attTimeIn" value="08:00" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Keluar</label>
+                <input type="time" id="attTimeOut" value="17:00" onchange="calculateOvertimeAuto()" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              </div>
+            </div>
+
+            <!-- Jam Lembur -->
+            <div id="overtimeContainer">
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-slate-600">Durasi Lembur (Jam)</label>
+                <button type="button" onclick="calculateOvertimeAuto()" class="text-[11px] text-indigo-600 hover:underline font-semibold">Hitung Otomatis</button>
+              </div>
+              <div class="relative">
+                <input type="number" id="attOvertime" min="0" max="12" step="0.5" value="0" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none pl-9 font-bold text-indigo-950">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <i class="fa-solid fa-business-time"></i>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Normal jam kerja pabrik: 8 jam (08:00 - 17:00 istirahat 1 jam). Kelebihan jam dihitung lembur.</p>
+            </div>
+
+            <!-- Catatan / Tugas Garmen -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Catatan Tugas / Target Batch</label>
+              <input type="text" id="attNotes" placeholder="Contoh: Jahit Kemeja Batch 402, QC Celana" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+
+            <!-- Tombol Simpan -->
+            <div class="pt-2">
+              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Simpan Presensi & Lembur</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Kolom Ringkasan Cepat Hari Ini -->
+        <div class="lg:col-span-2 space-y-5">
+          <!-- Widget Info Hari Ini -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium">Hadir Hari Ini</p>
+              <h3 id="statTodayHadir" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium">Total Lembur Hari Ini</p>
+              <h3 id="statTodayLembur" class="text-2xl font-bold text-amber-600 mt-1">0 <span class="text-xs text-slate-400 font-normal">Jam</span></h3>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium">Sakit / Izin</p>
+              <h3 id="statTodayIzin" class="text-2xl font-bold text-sky-600 mt-1">0</h3>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p class="text-xs text-slate-500 font-medium">Alpa</p>
+              <h3 id="statTodayAlpa" class="text-2xl font-bold text-rose-600 mt-1">0</h3>
+            </div>
+          </div>
+
+          <!-- Tabel Presensi Terakhir -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-2">
+              <div>
+                <h3 class="font-bold text-slate-800 text-sm sm:text-base">Aktivitas Presensi Terakhir</h3>
+                <p class="text-xs text-slate-500">Pencatatan jam masuk, pulang, dan lembur terkini</p>
+              </div>
+              <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">PT. TRIANA Realtime</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase font-semibold text-[11px] tracking-wider">
+                    <th class="py-3 px-4">Tanggal</th>
+                    <th class="py-3 px-4">Karyawan</th>
+                    <th class="py-3 px-4">Divisi</th>
+                    <th class="py-3 px-4">Jam Kerja</th>
+                    <th class="py-3 px-4 text-center">Lembur</th>
+                    <th class="py-3 px-4 text-center">Status</th>
+                    <th class="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="recentAttendanceTbody" class="divide-y divide-slate-100">
+                  <!-- Baris data diisi oleh JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: REKAPITULASI DATA LENGKAP -->
+    <section id="section-rekap" class="hidden space-y-4">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Rekapitulasi Presensi & Lembur</h2>
+          <p class="text-xs text-slate-500">Filter data presensi per karyawan atau rentang tanggal untuk dasar perhitungan gaji</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold py-2 px-3.5 rounded-xl shadow transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>Ekspor ke CSV</span>
+          </button>
+          <button onclick="clearAllDataPrompt()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-semibold py-2 px-3 rounded-xl border border-rose-200 transition">
+            <i class="fa-solid fa-trash-can mr-1"></i>Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Filter Karyawan</label>
+          <select id="filterEmp" onchange="renderRekapTable()" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-2.5 py-1.5">
+            <option value="ALL">Semua Karyawan</option>
+            <!-- Diisi JS -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Filter Bulan/Tahun</label>
+          <input type="month" id="filterMonth" onchange="renderRekapTable()" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-2.5 py-1.5">
+        </div>
+        <div class="flex items-end">
+          <button onclick="resetFilters()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold py-2 px-3 rounded-lg transition">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>Reset Filter
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabel Rekap Utama -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase font-semibold text-[11px] tracking-wider">
+                <th class="py-3 px-4">No</th>
+                <th class="py-3 px-4">Tanggal</th>
+                <th class="py-3 px-4">NIK & Nama</th>
+                <th class="py-3 px-4">Divisi</th>
+                <th class="py-3 px-4">Jam Masuk</th>
+                <th class="py-3 px-4">Jam Pulang</th>
+                <th class="py-3 px-4 text-center">Jam Lembur</th>
+                <th class="py-3 px-4 text-center">Status</th>
+                <th class="py-3 px-4">Catatan</th>
+                <th class="py-3 px-4 text-center">Slip Gaji</th>
+              </tr>
+            </thead>
+            <tbody id="fullRekapTbody" class="divide-y divide-slate-100">
+              <!-- Diisi JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: GENERATOR & PRINT SLIP GAJI -->
+    <section id="section-payroll" class="hidden space-y-5">
+      <!-- Pengaturan Periode & Generate -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm no-print">
+        <div class="flex flex-wrap justify-between items-center gap-3 pb-3 mb-3 border-b border-slate-100">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center">
+              <i class="fa-solid fa-file-invoice-dollar mr-2 text-indigo-600"></i>Penerbitan Slip Gaji PT. TRIANA
+            </h2>
+            <p class="text-xs text-slate-500">Pilih karyawan & periode bulan kerja untuk menghitung akumulasi kehadiran dan lembur</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Pilih Karyawan</label>
+            <select id="payrollEmpSelect" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500">
+              <!-- Diisi JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Periode Bulan</label>
+            <input type="month" id="payrollMonth" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Potongan Kasbon / Lain (Rp)</label>
+            <input type="number" id="payrollDeduction" value="0" min="0" step="10000" class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <button onclick="generateSlipGaji()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center space-x-2">
+              <i class="fa-solid fa-calculator"></i>
+              <span>Hitung & Tampilkan Slip</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Slip Gaji (Area yang akan di-print/download) -->
+      <div class="flex justify-center">
+        <div class="w-full max-w-3xl">
+          <!-- Tombol Aksi Print & Download -->
+          <div class="flex justify-end gap-2 mb-3 no-print">
+            <button onclick="window.print()" class="bg-indigo-900 hover:bg-indigo-950 text-white text-xs sm:text-sm font-semibold py-2 px-4 rounded-xl shadow-md transition flex items-center space-x-2">
+              <i class="fa-solid fa-print"></i>
+              <span>Cetak / Download PDF</span>
+            </button>
+          </div>
+
+          <!-- Lembar Slip Gaji Resmi -->
+          <div id="printableSlip" class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-300 shadow-lg text-slate-800">
+            <!-- Kop Surat Resmi PT. TRIANA -->
+            <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-start">
+              <div>
+                <h1 class="text-xl sm:text-2xl font-black tracking-wide text-slate-900">PT. TRIANA GARMEN INDONESIA</h1>
+                <p class="text-xs text-slate-600">Kawasan Industri Tekstil & Konveksi Terpadu</p>
+                <p class="text-xs text-slate-600">Jl. Industri Raya No. 45 - Jawa Barat | Telp: (022) 8765-4321</p>
+              </div>
+              <div class="text-right">
+                <span class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1 uppercase tracking-wider rounded">Slip Gaji Karyawan</span>
+                <p id="slipDocNumber" class="text-[11px] font-mono text-slate-500 mt-1">NO: SLIP/TRN/2026/001</p>
+              </div>
+            </div>
+
+            <!-- Identitas Penerima -->
+            <div class="grid grid-cols-2 gap-4 text-xs sm:text-sm mb-5 pb-4 border-b border-slate-200">
+              <div class="space-y-1">
+                <div class="flex"><span class="w-28 text-slate-500">Nama Karyawan</span><span class="font-bold">: <span id="slipNama">-</span></span></div>
+                <div class="flex"><span class="w-28 text-slate-500">Nomor Induk (NIK)</span><span class="font-medium">: <span id="slipNIK">-</span></span></div>
+                <div class="flex"><span class="w-28 text-slate-500">Divisi / Bagian</span><span class="font-medium">: <span id="slipDivisi">-</span></span></div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex"><span class="w-28 text-slate-500">Periode Kerja</span><span class="font-medium">: <span id="slipPeriode">-</span></span></div>
+                <div class="flex"><span class="w-28 text-slate-500">Status Pegawai</span><span class="font-medium">: Tetap / Operasional</span></div>
+                <div class="flex"><span class="w-28 text-slate-500">Tanggal Cetak</span><span class="font-medium">: <span id="slipTanggalCetak">-</span></span></div>
+              </div>
+            </div>
+
+            <!-- Rekapitulasi Presensi Terkait -->
+            <div class="mb-5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Rincian Kehadiran & Jam Lembur (Berdasarkan Rekap)</h4>
+              <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                <div class="bg-white p-2 rounded-lg border border-slate-200">
+                  <span class="text-slate-500 block text-[10px]">Hari Hadir</span>
+                  <span id="slipHadirDays" class="text-base font-bold text-emerald-700">0</span> Hari
+                </div>
+                <div class="bg-white p-2 rounded-lg border border-slate-200">
+                  <span class="text-slate-500 block text-[10px]">Total Jam Lembur</span>
+                  <span id="slipLemburHours" class="text-base font-bold text-amber-700">0</span> Jam
+                </div>
+                <div class="bg-white p-2 rounded-lg border border-slate-200">
+                  <span class="text-slate-500 block text-[10px]">Sakit / Izin</span>
+                  <span id="slipIzinDays" class="text-base font-bold text-sky-700">0</span> Hari
+                </div>
+                <div class="bg-white p-2 rounded-lg border border-slate-200">
+                  <span class="text-slate-500 block text-[10px]">Alpa (Potong Hari)</span>
+                  <span id="slipAlpaDays" class="text-base font-bold text-rose-700">0</span> Hari
+                </div>
+              </div>
+            </div>
+
+            <!-- Komponen Penghasilan & Potongan -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs sm:text-sm mb-6">
+              <!-- Penerimaan -->
+              <div>
+                <h4 class="font-bold text-slate-800 border-b border-slate-300 pb-1 mb-2 uppercase text-xs tracking-wider flex justify-between">
+                  <span>A. Penerimaan (Earnings)</span>
+                  <span>Jumlah</span>
+                </h4>
+                <div class="space-y-1.5">
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">Gaji Pokok Bulanan</span>
+                    <span id="slipGajiPokok" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">Upah Lembur (<span id="slipLemburDetailRate">0 jam</span>)</span>
+                    <span id="slipTotalLembur" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">Uang Makan & Transport</span>
+                    <span id="slipUangMakan" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">Insentif Kerajinan Garmen</span>
+                    <span id="slipInsentif" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between pt-2 border-t border-slate-200 font-bold text-slate-900">
+                    <span>Total Penerimaan Kotor</span>
+                    <span id="slipTotalKotor" class="font-mono">Rp 0</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Potongan -->
+              <div>
+                <h4 class="font-bold text-slate-800 border-b border-slate-300 pb-1 mb-2 uppercase text-xs tracking-wider flex justify-between">
+                  <span>B. Potongan (Deductions)</span>
+                  <span>Jumlah</span>
+                </h4>
+                <div class="space-y-1.5">
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">BPJS Ketenagakerjaan & Kes.</span>
+                    <span id="slipBPJS" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">Potongan Alpa/Mangkir</span>
+                    <span id="slipPotonganAlpa" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-600">Kasbon / Koperasi Karyawan</span>
+                    <span id="slipKasbon" class="font-mono font-medium">Rp 0</span>
+                  </div>
+                  <div class="flex justify-between pt-2 border-t border-slate-200 font-bold text-rose-700">
+                    <span>Total Potongan</span>
+                    <span id="slipTotalPotongan" class="font-mono">Rp 0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gaji Bersih (Take Home Pay) -->
+            <div class="bg-indigo-900 text-white p-4 rounded-xl flex justify-between items-center mb-6">
+              <div>
+                <span class="text-xs uppercase tracking-wider text-indigo-200 block">Total Gaji Bersih Diterima (Take Home Pay)</span>
+                <span class="text-[11px] text-indigo-300 italic" id="slipTerbilang"># Terbilang Rupiah #</span>
+              </div>
+              <div class="text-right">
+                <span id="slipGajiBersih" class="text-xl sm:text-2xl font-black font-mono">Rp 0</span>
+              </div>
+            </div>
+
+            <!-- Tanda Tangan -->
+            <div class="grid grid-cols-2 gap-6 text-center text-xs pt-4">
+              <div>
+                <p class="text-slate-500 mb-12">Penerima (Karyawan),</p>
+                <p id="slipSignNama" class="font-bold underline text-slate-800">-</p>
+                <p class="text-[11px] text-slate-400">Bagian Operasional Garmen</p>
+              </div>
+              <div>
+                <p class="text-slate-500 mb-12">Bandung, <span id="slipSignDate">-</span><br>Bagian HRD & Keuangan PT. TRIANA,</p>
+                <p class="font-bold underline text-slate-800">Hj. Triana, S.E.</p>
+                <p class="text-[11px] text-slate-400">Head of HR & Payroll</p>
+              </div>
+            </div>
+
+            <!-- Footer Nota -->
+            <div class="mt-6 pt-3 border-t border-slate-200 text-[10px] text-slate-400 flex justify-between">
+              <span>* Dokumen ini digenerate sah oleh Sistem Presensi & Payroll PT. TRIANA GARMEN.</span>
+              <span>Lembar 1: Arsip Karyawan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: KELOLA MASTER KARYAWAN -->
+    <section id="section-karyawan" class="hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Form Tambah Karyawan -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center">
+            <i class="fa-solid fa-user-plus mr-2 text-indigo-600"></i>Tambah Data Karyawan Baru
+          </h2>
+          <form id="employeeForm" onsubmit="handleEmployeeSubmit(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">NIK (Nomor Induk Karyawan)</label>
+              <input type="text" id="empNikInput" required placeholder="Contoh: TRN-041" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap</label>
+              <input type="text" id="empNameInput" required placeholder="Nama Karyawan" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Divisi / Bagian Pabrik</label>
+              <select id="empDivisiInput" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                <option value="Sewing / Penjahitan">Sewing / Penjahitan</option>
+                <option value="Cutting / Pemotongan">Cutting / Pemotongan</option>
+                <option value="Finishing & Packing">Finishing & Packing</option>
+                <option value="Quality Control (QC)">Quality Control (QC)</option>
+                <option value="Gudang Bahan / Kain">Gudang Bahan / Kain</option>
+                <option value="Maintenance & Mekanik">Maintenance & Mekanik</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Gaji Pokok / Bulan (Rp)</label>
+              <input type="number" id="empGajiInput" required min="1000000" step="50000" value="3500000" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Tarif Lembur / Jam (Rp)</label>
+              <input type="number" id="empOvertimeRateInput" required min="10000" step="1000" value="25000" class="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-lg text-xs sm:text-sm transition mt-2">
+              <i class="fa-solid fa-plus-circle mr-1"></i>Daftarkan Karyawan
+            </button>
+          </form>
+        </div>
+
+        <!-- Tabel Daftar Karyawan Garmen -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base">Daftar Tenaga Kerja PT. TRIANA</h3>
+            <span id="totalEmpBadge" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-bold">0 Orang</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase font-semibold text-[11px] tracking-wider">
+                  <th class="py-3 px-4">NIK</th>
+                  <th class="py-3 px-4">Nama</th>
+                  <th class="py-3 px-4">Divisi</th>
+                  <th class="py-3 px-4">Gaji Pokok</th>
+                  <th class="py-3 px-4">Rate Lembur/Jam</th>
+                  <th class="py-3 px-4 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="employeeTbody" class="divide-y divide-slate-100">
+                <!-- Diisi JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer Aplikasi -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-4 border-t border-slate-800 mt-auto no-print">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p>&copy; 2026 PT. TRIANA GARMEN INDONESIA. Hak Cipta Dilindungi.</p>
+      <p class="text-slate-500">Aplikasi Presensi Jam Kerja, Lembur & Penggajian Terpadu</p>
+    </div>
+  </footer>
+
+  <script>
+    // Inisialisasi Data Master Karyawan PT. TRIANA
+    let employees = [
+      { id: "TRN-001", name: "Siti Rahmawati", divisi: "Sewing / Penjahitan", gajiPokok: 3600000, rateLembur: 25000 },
+      { id: "TRN-002", name: "Ahmad Junaedi", divisi: "Cutting / Pemotongan", gajiPokok: 3750000, rateLembur: 26000 },
+      { id: "TRN-003", name: "Dewi Lestari", divisi: "Quality Control (QC)", gajiPokok: 3800000, rateLembur: 27000 },
+      { id: "TRN-004", name: "Budi Santoso", divisi: "Finishing & Packing", gajiPokok: 3500000, rateLembur: 25000 },
+      { id: "TRN-005", name: "Iwan Setiawan", divisi: "Maintenance & Mekanik", gajiPokok: 4000000, rateLembur: 28000 }
+    ];
+
+    // Riwayat Presensi
+    let attendances = [
+      {
+        id: "att_1",
+        date: "2026-10-20",
+        employeeId: "TRN-001",
+        timeIn: "08:00",
+        timeOut: "19:00",
+        overtimeHours: 2,
+        status: "Hadir",
+        notes: "Target Kemeja Ekspor 50 pcs"
+      },
+      {
+        id: "att_2",
+        date: "2026-10-20",
+        employeeId: "TRN-002",
+        timeIn: "07:55",
+        timeOut: "17:00",
+        overtimeHours: 0,
+        status: "Hadir",
+        notes: "Potong Pola Celana Chino"
+      },
+      {
+        id: "att_3",
+        date: "2026-10-21",
+        employeeId: "TRN-001",
+        timeIn: "08:00",
+        timeOut: "20:00",
+        overtimeHours: 3,
+        status: "Hadir",
+        notes: "Lembur Obras Batch 3"
+      },
+      {
+        id: "att_4",
+        date: "2026-10-21",
+        employeeId: "TRN-003",
+        timeIn: "08:00",
+        timeOut: "17:00",
+        overtimeHours: 0,
+        status: "Hadir",
+        notes: "Inspeksi Jahitan Ekspor"
+      },
+      {
+        id: "att_5",
+        date: "2026-10-22",
+        employeeId: "TRN-004",
+        timeIn: "-",
+        timeOut: "-",
+        overtimeHours: 0,
+        status: "Sakit",
+        notes: "Surat Dokter Flu & Demam"
+      }
+    ];
+
+    window.onload = function() {
+      // Set input tanggal hari ini secara default
+      const today = new Date().toISOString().split('T')[0];
+      const curMonth = today.substring(0, 7);
+      
+      document.getElementById('attDate').value = today;
+      document.getElementById('filterMonth').value = curMonth;
+      document.getElementById('payrollMonth').value = curMonth;
+
+      renderEmployeeDropdowns();
+      renderEmployeeTable();
+      renderRecentAttendance();
+      renderRekapTable();
+      updateTodayStats();
+      
+      // Generate slip default untuk karyawan pertama
+      if(employees.length > 0) {
+        generateSlipGaji();
+      }
+    };
+
+    // Navigasi Tab
+    function switchTab(tabId) {
+      const tabs = ['presensi', 'rekap', 'payroll', 'karyawan'];
+      tabs.forEach(t => {
+        const sec = document.getElementById(`section-${t}`);
+        const btn = document.getElementById(`tabBtn-${t}`);
+        if(t === tabId) {
+          sec.classList.remove('hidden');
+          sec.classList.add('block');
+          btn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition bg-indigo-600 text-white shadow";
+        } else {
+          sec.classList.remove('block');
+          sec.classList.add('hidden');
+          btn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition text-indigo-200 hover:text-white";
+        }
+      });
+
+      if(tabId === 'rekap') {
+        renderRekapTable();
+      }
+    }
+
+    // Tampilkan Toast Notifikasi
+    function showToast(text, isError = false) {
+      const toast = document.getElementById('toastMessage');
+      const toastText = document.getElementById('toastText');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastText.innerText = text;
+      if(isError) {
+        toastIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i>';
+      } else {
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+      }
+
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3500);
+    }
+
+    // Render dropdown karyawan ke semua select box
+    function renderEmployeeDropdowns() {
+      const attSelect = document.getElementById('attEmployee');
+      const filterSelect = document.getElementById('filterEmp');
+      const payrollSelect = document.getElementById('payrollEmpSelect');
+
+      let options = employees.map(emp => 
+        `<option value="${emp.id}">${emp.id} - ${emp.name} (${emp.divisi})</option>`
+      ).join('');
+
+      attSelect.innerHTML = options;
+      payrollSelect.innerHTML = options;
+
+      filterSelect.innerHTML = `<option value="ALL">Semua Karyawan</option>` + options;
+      
+      if(employees.length > 0) {
+        updateEmployeeBadge(employees[0].id);
+      }
+    }
+
+    function updateEmployeeBadge(empId) {
+      const emp = employees.find(e => e.id === empId);
+      const badge = document.getElementById('empBadge');
+      if(emp) {
+        badge.innerHTML = `Divisi: <strong class="text-indigo-600">${emp.divisi}</strong> | Rate Lembur: <strong>Rp ${emp.rateLembur.toLocaleString('id-ID')}/jam</strong>`;
+      }
+    }
+
+    // Tambah Karyawan Baru
+    function handleEmployeeSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('empNikInput').value.trim();
+      const name = document.getElementById('empNameInput').value.trim();
+      const divisi = document.getElementById('empDivisiInput').value;
+      const gajiPokok = parseFloat(document.getElementById('empGajiInput').value);
+      const rateLembur = parseFloat(document.getElementById('empOvertimeRateInput').value);
+
+      // Cek duplikasi NIK
+      if(employees.some(emp => emp.id.toLowerCase() === id.toLowerCase())) {
+        showToast("NIK Karyawan sudah terdaftar!", true);
+        return;
+      }
+
+      employees.push({ id, name, divisi, gajiPokok, rateLembur });
+      renderEmployeeDropdowns();
+      renderEmployeeTable();
+      document.getElementById('employeeForm').reset();
+      showToast("Karyawan baru berhasil ditambahkan!");
+    }
+
+    function renderEmployeeTable() {
+      const tbody = document.getElementById('employeeTbody');
+      document.getElementById('totalEmpBadge').innerText = `${employees.length} Tenaga Kerja`;
+
+      tbody.innerHTML = employees.map(emp => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-4 font-mono font-semibold text-indigo-700">${emp.id}</td>
+          <td class="py-3 px-4 font-bold text-slate-800">${emp.name}</td>
+          <td class="py-3 px-4"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs">${emp.divisi}</span></td>
+          <td class="py-3 px-4 font-mono">Rp ${emp.gajiPokok.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 font-mono text-amber-600 font-semibold">Rp ${emp.rateLembur.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="deleteEmployee('${emp.id}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold p-1">
+              <i class="fa-solid fa-trash-can"></i> Hapus
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function deleteEmployee(empId) {
+      if(employees.length <= 1) {
+        showToast("Minimal harus menyisakan 1 karyawan!", true);
+        return;
+      }
+      employees = employees.filter(e => e.id !== empId);
+      renderEmployeeDropdowns();
+      renderEmployeeTable();
+      renderRecentAttendance();
+      renderRekapTable();
+      showToast("Data karyawan dihapus.");
+    }
+
+    // Perhitungan Jam Lembur Otomatis Berdasarkan Jam Masuk & Jam Keluar
+    function calculateOvertimeAuto() {
+      const timeIn = document.getElementById('attTimeIn').value;
+      const timeOut = document.getElementById('attTimeOut').value;
+      const status = document.getElementById('attStatus').value;
+
+      if(status !== "Hadir" || !timeIn || !timeOut) return;
+
+      const [hIn, mIn] = timeIn.split(':').map(Number);
+      const [hOut, mOut] = timeOut.split(':').map(Number);
+
+      const totalMinutesIn = (hIn * 60) + mIn;
+      const totalMinutesOut = (hOut * 60) + mOut;
+
+      let workMinutes = totalMinutesOut - totalMinutesIn;
+      
+      // Jika kerja lebih dari 5 jam, kurangi waktu istirahat pabrik 60 menit
+      if(workMinutes > 300) {
+        workMinutes -= 60;
+      }
+
+      // Jam kerja normal = 8 jam (480 menit)
+      const normalMinutes = 480;
+      let overtime = 0;
+
+      if(workMinutes > normalMinutes) {
+        overtime = (workMinutes - normalMinutes) / 60;
+        // Bulatkan ke kelipatan 0.5 jam terdekat
+        overtime = Math.round(overtime * 2) / 2;
+      }
+
+      document.getElementById('attOvertime').value = Math.max(0, overtime);
+    }
+
+    function toggleTimeInputs(status) {
+      const workingTimeContainer = document.getElementById('workingTimeContainer');
+      const overtimeContainer = document.getElementById('overtimeContainer');
+      
+      if(status === 'Hadir') {
+        workingTimeContainer.style.display = 'grid';
+        overtimeContainer.style.display = 'block';
+      } else {
+        workingTimeContainer.style.display = 'none';
+        overtimeContainer.style.display = 'none';
+        document.getElementById('attOvertime').value = 0;
+      }
+    }
+
+    // Simpan Presensi & Lembur
+    function handleAttendanceSubmit(e) {
+      e.preventDefault();
+      const date = document.getElementById('attDate').value;
+      const employeeId = document.getElementById('attEmployee').value;
+      const status = document.getElementById('attStatus').value;
+      const timeIn = status === 'Hadir' ? document.getElementById('attTimeIn').value : '-';
+      const timeOut = status === 'Hadir' ? document.getElementById('attTimeOut').value : '-';
+      const overtimeHours = status === 'Hadir' ? parseFloat(document.getElementById('attOvertime').value || 0) : 0;
+      const notes = document.getElementById('attNotes').value.trim() || '-';
+
+      // Cek apakah tanggal dan karyawan yang sama sudah diinput
+      const existingIdx = attendances.findIndex(a => a.date === date && a.employeeId === employeeId);
+      if(existingIdx !== -1) {
+        attendances[existingIdx] = {
+          id: attendances[existingIdx].id,
+          date, employeeId, timeIn, timeOut, overtimeHours, status, notes
+        };
+        showToast("Data presensi tanggal tersebut diperbarui!");
+      } else {
+        attendances.unshift({
+          id: "att_" + Date.now(),
+          date, employeeId, timeIn, timeOut, overtimeHours, status, notes
+        });
+        showToast("Presensi & Lembur berhasil dicatat!");
+      }
+
+      document.getElementById('attNotes').value = "";
+      renderRecentAttendance();
+      renderRekapTable();
+      updateTodayStats();
+    }
+
+    // Render Widget Statistik Hari Ini
+    function updateTodayStats() {
+      const today = new Date().toISOString().split('T')[0];
+      const todayData = attendances.filter(a => a.date === today);
+
+      const hadir = todayData.filter(a => a.status === 'Hadir').length;
+      const izin = todayData.filter(a => a.status === 'Sakit' || a.status === 'Izin').length;
+      const alpa = todayData.filter(a => a.status === 'Alpa').length;
+      const totalLembur = todayData.reduce((acc, curr) => acc + (curr.overtimeHours || 0), 0);
+
+      document.getElementById('statTodayHadir').innerText = hadir;
+      document.getElementById('statTodayLembur').innerHTML = `${totalLembur} <span class="text-xs text-slate-400 font-normal">Jam</span>`;
+      document.getElementById('statTodayIzin').innerText = izin;
+      document.getElementById('statTodayAlpa').innerText = alpa;
+    }
+
+    function renderRecentAttendance() {
+      const tbody = document.getElementById('recentAttendanceTbody');
+      const recent = attendances.slice(0, 6);
+
+      if(recent.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Belum ada data presensi.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = recent.map(att => {
+        const emp = employees.find(e => e.id === att.employeeId) || { name: 'Tidak Dikenal', divisi: '-' };
+        
+        let statusBadge = '';
+        if(att.status === 'Hadir') statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-xs font-semibold">Hadir</span>';
+        else if(att.status === 'Sakit') statusBadge = '<span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full text-xs font-semibold">Sakit</span>';
+        else if(att.status === 'Izin') statusBadge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-semibold">Izin</span>';
+        else statusBadge = '<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full text-xs font-semibold">Alpa</span>';
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-4 font-mono">${att.date}</td>
+            <td class="py-3 px-4 font-semibold text-slate-800">${emp.name}</td>
+            <td class="py-3 px-4 text-slate-500">${emp.divisi}</td>
+            <td class="py-3 px-4 font-mono text-slate-600">${att.timeIn} - ${att.timeOut}</td>
+            <td class="py-3 px-4 text-center font-bold text-amber-600 font-mono">${att.overtimeHours > 0 ? att.overtimeHours + ' Jam' : '-'}</td>
+            <td class="py-3 px-4 text-center">${statusBadge}</td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="deleteAttendance('${att.id}')" class="text-rose-500 hover:text-rose-700 text-xs">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderRekapTable() {
+      const tbody = document.getElementById('fullRekapTbody');
+      const empFilter = document.getElementById('filterEmp').value;
+      const monthFilter = document.getElementById('filterMonth').value;
+
+      let filtered = attendances.filter(att => {
+        const matchEmp = empFilter === 'ALL' || att.employeeId === empFilter;
+        const matchMonth = !monthFilter || att.date.startsWith(monthFilter);
+        return matchEmp && matchMonth;
+      });
+
+      if(filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400">Tidak ada riwayat presensi yang sesuai kriteria filter.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((att, idx) => {
+        const emp = employees.find(e => e.id === att.employeeId) || { name: 'Karyawan Dihapus', divisi: '-' };
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-4 text-slate-400 font-mono">${idx + 1}</td>
+            <td class="py-3 px-4 font-mono font-medium">${att.date}</td>
+            <td class="py-3 px-4 font-semibold text-slate-800">${emp.name} <span class="text-xs text-slate-400 font-normal">(${att.employeeId})</span></td>
+            <td class="py-3 px-4 text-slate-600">${emp.divisi}</td>
+            <td class="py-3 px-4 font-mono">${att.timeIn}</td>
+            <td class="py-3 px-4 font-mono">${att.timeOut}</td>
+            <td class="py-3 px-4 text-center font-mono font-bold text-amber-600">${att.overtimeHours} Jam</td>
+            <td class="py-3 px-4 text-center font-semibold">${att.status}</td>
+            <td class="py-3 px-4 text-slate-500 text-xs italic">${att.notes}</td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="quickGenerateSlip('${att.employeeId}', '${att.date.substring(0, 7)}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-lg transition">
+                <i class="fa-solid fa-receipt mr-1"></i>Slip
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function deleteAttendance(attId) {
+      attendances = attendances.filter(a => a.id !== attId);
+      renderRecentAttendance();
+      renderRekapTable();
+      updateTodayStats();
+      showToast("Catatan presensi berhasil dihapus.");
+    }
+
+    function resetFilters() {
+      document.getElementById('filterEmp').value = 'ALL';
+      document.getElementById('filterMonth').value = '';
+      renderRekapTable();
+    }
+
+    // Perhitungan Slip Gaji Terhubung Langsung ke Presensi & Lembur
+    function generateSlipGaji() {
+      const empId = document.getElementById('payrollEmpSelect').value;
+      const monthPeriod = document.getElementById('payrollMonth').value;
+      const deductionInput = parseFloat(document.getElementById('payrollDeduction').value) || 0;
+
+      const emp = employees.find(e => e.id === empId);
+      if(!emp) {
+        showToast("Pilih karyawan terlebih dahulu!", true);
+        return;
+      }
+
+      // Hitung semua presensi karyawan ini di bulan yang dipilih
+      const monthAttendances = attendances.filter(a => a.employeeId === empId && a.date.startsWith(monthPeriod));
+
+      const hadirCount = monthAttendances.filter(a => a.status === 'Hadir').length;
+      const izinCount = monthAttendances.filter(a => a.status === 'Sakit' || a.status === 'Izin').length;
+      const alpaCount = monthAttendances.filter(a => a.status === 'Alpa').length;
+      const totalOvertimeHours = monthAttendances.reduce((acc, curr) => acc + (curr.overtimeHours || 0), 0);
+
+      // Rumus Penggajian Garmen:
+      // 1. Upah Lembur = Total Jam Lembur × Rate Lembur Karyawan
+      const nominalLembur = totalOvertimeHours * emp.rateLembur;
+      
+      // 2. Uang Makan & Transport = Rp 20.000 per hari masuk kerja
+      const uangMakanPerHari = 20000;
+      const nominalUangMakan = hadirCount * uangMakanPerHari;
+
+      // 3. Insentif Kerajinan (Bonus jika hadir penuh tanpa alpa)
+      const insentif = (alpaCount === 0 && hadirCount > 10) ? 150000 : 0;
+
+      // 4. Potongan Alpa = (Gaji Pokok / 25 hari) × Jumlah Alpa
+      const potongPerAlpa = Math.round(emp.gajiPokok / 25);
+      const totalPotonganAlpa = alpaCount * potongPerAlpa;
+
+      // 5. BPJS Kesehatan & Ketenagakerjaan (3% dari Pokok)
+      const bpjs = Math.round(emp.gajiPokok * 0.03);
+
+      // Total Perhitungan
+      const totalKotor = emp.gajiPokok + nominalLembur + nominalUangMakan + insentif;
+      const totalPotongan = bpjs + totalPotonganAlpa + deductionInput;
+      const gajiBersih = totalKotor - totalPotongan;
+
+      // Render ke DOM Slip Gaji
+      document.getElementById('slipNama').innerText = emp.name;
+      document.getElementById('slipNIK').innerText = emp.id;
+      document.getElementById('slipDivisi').innerText = emp.divisi;
+      document.getElementById('slipPeriode').innerText = formatBulanIndonesia(monthPeriod);
+      document.getElementById('slipTanggalCetak').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('slipDocNumber').innerText = `NO: SLIP/TRN/${monthPeriod.replace('-', '')}/${emp.id.replace('TRN-', '')}`;
+
+      document.getElementById('slipHadirDays').innerText = hadirCount;
+      document.getElementById('slipLemburHours').innerText = totalOvertimeHours;
+      document.getElementById('slipIzinDays').innerText = izinCount;
+      document.getElementById('slipAlpaDays').innerText = alpaCount;
+
+      document.getElementById('slipGajiPokok').innerText = `Rp ${emp.gajiPokok.toLocaleString('id-ID')}`;
+      document.getElementById('slipLemburDetailRate').innerText = `${totalOvertimeHours} jam @ Rp ${emp.rateLembur.toLocaleString('id-ID')}`;
+      document.getElementById('slipTotalLembur').innerText = `Rp ${nominalLembur.toLocaleString('id-ID')}`;
+      document.getElementById('slipUangMakan').innerText = `Rp ${nominalUangMakan.toLocaleString('id-ID')} (${hadirCount} hari)`;
+      document.getElementById('slipInsentif').innerText = `Rp ${insentif.toLocaleString('id-ID')}`;
+      document.getElementById('slipTotalKotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
+
+      document.getElementById('slipBPJS').innerText = `Rp ${bpjs.toLocaleString('id-ID')}`;
+      document.getElementById('slipPotonganAlpa').innerText = `Rp ${totalPotonganAlpa.toLocaleString('id-ID')}`;
+      document.getElementById('slipKasbon').innerText = `Rp ${deductionInput.toLocaleString('id-ID')}`;
+      document.getElementById('slipTotalPotongan').innerText = `Rp ${totalPotongan.toLocaleString('id-ID')}`;
+
+      document.getElementById('slipGajiBersih').innerText = `Rp ${Math.max(0, gajiBersih).toLocaleString('id-ID')}`;
+      document.getElementById('slipTerbilang').innerText = `# ${terbilang(Math.max(0, gajiBersih))} Rupiah #`;
+
+      document.getElementById('slipSignNama').innerText = emp.name;
+      document.getElementById('slipSignDate').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function quickGenerateSlip(empId, month) {
+      document.getElementById('payrollEmpSelect').value = empId;
+      document.getElementById('payrollMonth').value = month;
+      switchTab('payroll');
+      generateSlipGaji();
+    }
+
+    // Helper Format Bulan Indo
+    function formatBulanIndonesia(yearMonthStr) {
+      if(!yearMonthStr) return "-";
+      const [year, month] = yearMonthStr.split('-');
+      const namaBulan = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      ];
+      return `${namaBulan[parseInt(month) - 1]} ${year}`;
+    }
+
+    // Konversi Angka ke Kata Terbilang Rupiah
+    function terbilang(angka) {
+      angka = Math.floor(angka);
+      const bilangan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+      if (angka < 12) return bilangan[angka];
+      else if (angka < 20) return terbilang(angka - 10) + ' Belas';
+      else if (angka < 100) return terbilang(Math.floor(angka / 10)) + ' Puluh ' + terbilang(angka % 10);
+      else if (angka < 200) return 'Seratus ' + terbilang(angka - 100);
+      else if (angka < 1000) return terbilang(Math.floor(angka / 100)) + ' Ratus ' + terbilang(angka % 100);
+      else if (angka < 2000) return 'Seribu ' + terbilang(angka - 1000);
+      else if (angka < 1000000) return terbilang(Math.floor(angka / 1000)) + ' Ribu ' + terbilang(angka % 1000);
+      else if (angka < 1000000000) return terbilang(Math.floor(angka / 1000000)) + ' Juta ' + terbilang(angka % 1000000);
+      return '';
+    }
+
+    // Ekspor Data Rekap ke CSV
+    function exportToCSV() {
+      if(attendances.length === 0) {
+        showToast("Tidak ada data presensi untuk diekspor!", true);
+        return;
+      }
+
+      let csv = "ID Presensi,Tanggal,NIK,Nama Karyawan,Divisi,Jam Masuk,Jam Keluar,Jam Lembur,Status,Catatan\n";
+      attendances.forEach(att => {
+        const emp = employees.find(e => e.id === att.employeeId) || { name: '-', divisi: '-' };
+        csv += `"${att.id}","${att.date}","${att.employeeId}","${emp.name}","${emp.divisi}","${att.timeIn}","${att.timeOut}","${att.overtimeHours}","${att.status}","${att.notes}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Rekap_Presensi_PT_TRIANA_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("Data presensi berhasil didownload (CSV)!");
+    }
+
+    function clearAllDataPrompt() {
+      // Menggunakan dialog konfirmasi kustom inline yang aman
+      if(confirm("Apakah Anda yakin ingin mereset data absensi ke kondisi awal?")) {
+        attendances = [];
+        renderRecentAttendance();
+        renderRekapTable();
+        updateTodayStats();
+        showToast("Seluruh riwayat presensi telah dibersihkan.");
+      }
+    }
+  </script>
+</body>
+</html>
